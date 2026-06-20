@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Parking Spots - Real-Time Parking Availability
+
+Find free parking spots in the Bay Area in real-time. Users submit crowding reports to help others find available parking.
+
+## Features
+
+- **Real-time Status Updates**: See which parking spots are free or taken based on recent community reports
+- **Multi-City Coverage**: San Francisco, Oakland, Berkeley, Palo Alto, and San Jose
+- **Quick Reporting**: Report parking status in one tap
+- **Smart Aggregation**: Status updates based on recent reports (1-hour window)
+- **Neighborhood Search**: Find spots by street name or neighborhood
+- **Interactive Map**: Mapbox-powered visualization of all parking spots
+
+## Tech Stack
+
+- **Frontend**: Next.js 14, React, TypeScript, Tailwind CSS
+- **Backend**: Next.js API Routes
+- **Database**: Supabase (PostgreSQL)
+- **Maps**: Mapbox GL
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+
+- Mapbox account (free tier available)
+- Supabase account (free tier available)
+
+### Setup
+
+1. **Install dependencies**:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. **Configure database** - See [SETUP.md](SETUP.md) for Supabase setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. **Add environment variables**:
+```bash
+cp .env.local.example .env.local
+# Edit .env.local with your credentials
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. **Run locally**:
+```bash
+npm run dev
+```
 
-## Learn More
+Open http://localhost:3000
 
-To learn more about Next.js, take a look at the following resources:
+## Project Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+src/
+├── app/
+│   ├── api/
+│   │   ├── reports/route.ts    # Report submission endpoint
+│   │   └── spots/route.ts      # Fetch spots with aggregated data
+│   └── page.tsx                 # Main UI
+├── components/
+│   ├── Map.tsx                  # Mapbox GL integration
+│   ├── SpotCard.tsx             # Spot display card
+│   └── ReportModal.tsx          # Report submission form
+└── types/
+    └── index.ts                 # TypeScript definitions
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deployment
 
-## Deploy on Vercel
+Deploy to Vercel with automatic GitHub integration:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+vercel
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Database Setup
+
+See [SETUP.md](SETUP.md) for complete database initialization instructions including SQL schema and seed data.
