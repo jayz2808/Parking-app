@@ -2,16 +2,17 @@
 
 import { useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
-import { SpotWithReports } from '@/types';
+import { SpotWithReports, City } from '@/types';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 interface MapProps {
   spots: SpotWithReports[];
   selectedSpot: SpotWithReports | null;
   onSpotSelect: (spot: SpotWithReports) => void;
+  city: City;
 }
 
-export function Map({ spots, selectedSpot, onSpotSelect }: MapProps) {
+export function Map({ spots, selectedSpot, onSpotSelect, city }: MapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
@@ -32,8 +33,8 @@ export function Map({ spots, selectedSpot, onSpotSelect }: MapProps) {
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/streets-v12',
-      center: [-122.2709, 37.8044],
-      zoom: 11,
+      center: [city.longitude, city.latitude],
+      zoom: city.zoom,
     });
 
     // Ensure the map sizes itself correctly once the container is laid out
@@ -49,6 +50,17 @@ export function Map({ spots, selectedSpot, onSpotSelect }: MapProps) {
     }
   }, [spots]);
 
+  // Recenter the map when the user switches cities
+  useEffect(() => {
+    if (map.current) {
+      map.current.flyTo({
+        center: [city.longitude, city.latitude],
+        zoom: city.zoom,
+        essential: true,
+      });
+    }
+  }, [city]);
+
   const getStatusColor = (status: string): string => {
     return status === 'free' ? '#10b981' : '#ef4444';
   };
@@ -63,13 +75,13 @@ export function Map({ spots, selectedSpot, onSpotSelect }: MapProps) {
       const el = document.createElement('div');
       const color = getStatusColor(spot.status);
 
-      el.style.width = '28px';
-      el.style.height = '28px';
+      el.style.width = '12px';
+      el.style.height = '12px';
       el.style.backgroundColor = color;
       el.style.borderRadius = '50%';
-      el.style.border = '3px solid white';
+      el.style.border = '1.5px solid white';
       el.style.cursor = 'pointer';
-      el.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
+      el.style.boxShadow = '0 1px 3px rgba(0,0,0,0.4)';
       el.title = spot.street_name;
 
       const marker = new mapboxgl.Marker(el)

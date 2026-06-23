@@ -23,22 +23,6 @@ const CITIES: City[] = [
     neighborhoods: ['Downtown', 'Lake Merritt', 'Rockridge', 'Piedmont', 'Fruitvale'],
   },
   {
-    id: 'berkeley',
-    name: 'Berkeley',
-    latitude: 37.8715,
-    longitude: -122.2727,
-    zoom: 13,
-    neighborhoods: ['Downtown', 'Telegraph Ave', 'North Berkeley', 'South Berkeley'],
-  },
-  {
-    id: 'palo-alto',
-    name: 'Palo Alto',
-    latitude: 37.4419,
-    longitude: -122.143,
-    zoom: 13,
-    neighborhoods: ['Downtown', 'California Ave', 'Profesional Park'],
-  },
-  {
     id: 'san-jose',
     name: 'San Jose',
     latitude: 37.3382,
@@ -106,7 +90,7 @@ export default function Home() {
           <div className="lg:col-span-2">
             <div className="sticky top-8 space-y-4">
               <div className="bg-slate-800 rounded-2xl overflow-hidden shadow-2xl">
-                <Map spots={spots} selectedSpot={selectedSpot} onSpotSelect={setSelectedSpot} />
+                <Map spots={spots} selectedSpot={selectedSpot} onSpotSelect={setSelectedSpot} city={selectedCity} />
               </div>
 
               {selectedSpot && (
