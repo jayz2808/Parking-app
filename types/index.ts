@@ -1,4 +1,8 @@
-export type ParkingStatus = 'free' | 'taken';
+// Difficulty of finding parking at a spot — the core durable signal.
+export type Difficulty = 'easy' | 'moderate' | 'hard';
+
+// What kind of parking is available here.
+export type ParkingType = 'free' | 'metered' | 'permit' | 'mixed';
 
 export interface ParkingSpot {
   id: string;
@@ -6,23 +10,14 @@ export interface ParkingSpot {
   longitude: number;
   city: string;
   neighborhood: string;
-  status: ParkingStatus;
   street_name: string;
+  difficulty: Difficulty;
+  parking_type: ParkingType;
+  // Free-text: when parking is easiest, e.g. "After 6pm & weekends".
+  best_times?: string;
+  // Local knowledge: time limits, street cleaning, hidden lots, etc.
   notes?: string;
-}
-
-export interface ParkingReport {
-  id: string;
-  spot_id: string;
-  status: ParkingStatus;
-  timestamp: string;
-  user_id?: string;
-}
-
-export interface SpotWithReports extends ParkingSpot {
-  recent_reports: number;
-  last_report_time: string;
-  report_count_1h: number;
+  created_at?: string;
 }
 
 export interface City {
@@ -33,3 +28,19 @@ export interface City {
   zoom: number;
   neighborhoods: string[];
 }
+
+export const DIFFICULTY_META: Record<
+  Difficulty,
+  { label: string; color: string; chip: string }
+> = {
+  easy: { label: 'Easy', color: '#10b981', chip: 'bg-green-600' },
+  moderate: { label: 'Moderate', color: '#f59e0b', chip: 'bg-amber-500' },
+  hard: { label: 'Hard', color: '#ef4444', chip: 'bg-red-600' },
+};
+
+export const PARKING_TYPE_LABEL: Record<ParkingType, string> = {
+  free: 'Free',
+  metered: 'Metered',
+  permit: 'Permit only',
+  mixed: 'Mixed',
+};

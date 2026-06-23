@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { City } from '@/types';
+import { City, Difficulty, ParkingType, DIFFICULTY_META, PARKING_TYPE_LABEL } from '@/types';
 
 interface AddSpotModalProps {
   city: City;
@@ -11,11 +11,17 @@ interface AddSpotModalProps {
   onAdded: () => void;
 }
 
+const DIFFICULTIES: Difficulty[] = ['easy', 'moderate', 'hard'];
+const PARKING_TYPES: ParkingType[] = ['free', 'metered', 'permit', 'mixed'];
+
 export function AddSpotModal({ city, isOpen, onClose, onAdded }: AddSpotModalProps) {
   const [mounted, setMounted] = useState(false);
   const [streetName, setStreetName] = useState('');
   const [neighborhood, setNeighborhood] = useState(city.neighborhoods[0] || '');
-  const [status, setStatus] = useState<'free' | 'taken'>('free');
+  const [difficulty, setDifficulty] = useState<Difficulty>('moderate');
+  const [parkingType, setParkingType] = useState<ParkingType>('free');
+  const [bestTimes, setBestTimes] = useState('');
+  const [notes, setNotes] = useState('');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,7 +72,10 @@ export function AddSpotModal({ city, isOpen, onClose, onAdded }: AddSpotModalPro
           city: city.id,
           neighborhood,
           street_name: streetName.trim(),
-          status,
+          difficulty,
+          parking_type: parkingType,
+          best_times: bestTimes.trim() || null,
+          notes: notes.trim() || null,
         }),
       });
       if (!res.ok) {
@@ -75,6 +84,8 @@ export function AddSpotModal({ city, isOpen, onClose, onAdded }: AddSpotModalPro
       }
       // Reset and notify parent
       setStreetName('');
+      setBestTimes('');
+      setNotes('');
       setCoords(null);
       onAdded();
     } catch (err) {
@@ -90,24 +101,24 @@ export function AddSpotModal({ city, isOpen, onClose, onAdded }: AddSpotModalPro
       onClick={onClose}
     >
       <div
-        className="bg-slate-800 rounded-xl p-6 max-w-md w-full border border-slate-700"
+        className="bg-slate-800 rounded-xl p-6 max-w-md w-full border border-slate-700 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-xl font-bold text-white mb-1">Add a Parking Spot</h2>
+        <h2 className="text-xl font-bold text-white mb-1">Add Parking Knowledge</h2>
         <p className="text-slate-400 text-sm mb-4">
           {locating
             ? 'Finding your location…'
             : coords
-            ? `Using your location in ${city.name}`
+            ? `Sharing a tip near you in ${city.name}`
             : `Location unavailable — will use ${city.name} center`}
         </p>
 
-        <label className="block text-xs text-slate-300 font-semibold mb-1">Street name</label>
+        <label className="block text-xs text-slate-300 font-semibold mb-1">Street or area</label>
         <input
           type="text"
           value={streetName}
           onChange={(e) => setStreetName(e.target.value)}
-          placeholder="e.g. Market Street"
+          placeholder="e.g. Valencia St between 16th & 17th"
           className="w-full bg-slate-700 text-white placeholder-slate-400 px-4 py-2.5 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none transition text-sm mb-4"
         />
 
@@ -122,25 +133,57 @@ export function AddSpotModal({ city, isOpen, onClose, onAdded }: AddSpotModalPro
           ))}
         </select>
 
-        <label className="block text-xs text-slate-300 font-semibold mb-1">Current status</label>
-        <div className="grid grid-cols-2 gap-3 mb-5">
-          <button
-            onClick={() => setStatus('free')}
-            className={`p-3 rounded-lg font-semibold transition ${
-              status === 'free' ? 'bg-green-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-            }`}
-          >
-            Free
-          </button>
-          <button
-            onClick={() => setStatus('taken')}
-            className={`p-3 rounded-lg font-semibold transition ${
-              status === 'taken' ? 'bg-red-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-            }`}
-          >
-            Taken
-          </button>
+        <label className="block text-xs text-slate-300 font-semibold mb-1">How hard is parking here?</label>
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          {DIFFICULTIES.map((d) => (
+            <button
+              key={d}
+              onClick={() => setDifficulty(d)}
+              className={`p-2.5 rounded-lg font-semibold text-sm transition ${
+                difficulty === d
+                  ? `${DIFFICULTY_META[d].chip} text-white`
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              }`}
+            >
+              {DIFFICULTY_META[d].label}
+            </button>
+          ))}
         </div>
+
+        <label className="block text-xs text-slate-300 font-semibold mb-1">Parking type</label>
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          {PARKING_TYPES.map((t) => (
+            <button
+              key={t}
+              onClick={() => setParkingType(t)}
+              className={`p-2.5 rounded-lg font-semibold text-sm transition ${
+                parkingType === t
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              }`}
+            >
+              {PARKING_TYPE_LABEL[t]}
+            </button>
+          ))}
+        </div>
+
+        <label className="block text-xs text-slate-300 font-semibold mb-1">Best times (optional)</label>
+        <input
+          type="text"
+          value={bestTimes}
+          onChange={(e) => setBestTimes(e.target.value)}
+          placeholder="e.g. After 6pm & weekends"
+          className="w-full bg-slate-700 text-white placeholder-slate-400 px-4 py-2.5 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none transition text-sm mb-4"
+        />
+
+        <label className="block text-xs text-slate-300 font-semibold mb-1">Tips (optional)</label>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Street cleaning Tue 8–10am. 2hr limit. Free lot behind the CVS."
+          rows={3}
+          className="w-full bg-slate-700 text-white placeholder-slate-400 px-4 py-2.5 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none transition text-sm mb-5 resize-none"
+        />
 
         {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
 
@@ -157,7 +200,7 @@ export function AddSpotModal({ city, isOpen, onClose, onAdded }: AddSpotModalPro
             disabled={isSubmitting || locating}
             className="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-medium disabled:opacity-50"
           >
-            {isSubmitting ? 'Adding…' : 'Add Spot'}
+            {isSubmitting ? 'Adding…' : 'Add Tip'}
           </button>
         </div>
       </div>

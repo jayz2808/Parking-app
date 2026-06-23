@@ -2,14 +2,13 @@
 
 import { useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
-import { SpotWithReports, City } from '@/types';
-import { timeAgo } from '@/lib/relativeTime';
+import { ParkingSpot, City, DIFFICULTY_META, PARKING_TYPE_LABEL } from '@/types';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 interface MapProps {
-  spots: SpotWithReports[];
-  selectedSpot: SpotWithReports | null;
-  onSpotSelect: (spot: SpotWithReports) => void;
+  spots: ParkingSpot[];
+  selectedSpot: ParkingSpot | null;
+  onSpotSelect: (spot: ParkingSpot) => void;
   city: City;
   focusKey: number;
 }
@@ -56,6 +55,9 @@ export function Map({ spots, selectedSpot, onSpotSelect, city, focusKey }: MapPr
       map.current?.resize();
       addMarkers(spots);
     });
+
+    // Re-render markers on zoom so size/labels track the zoom level
+    map.current.on('zoomend', () => addMarkers(spots));
   }, []);
 
   useEffect(() => {
@@ -89,15 +91,11 @@ export function Map({ spots, selectedSpot, onSpotSelect, city, focusKey }: MapPr
     showPopup(selectedSpot);
   }, [focusKey]);
 
-  const getStatusColor = (status: string): string => {
-    return status === 'free' ? '#10b981' : '#ef4444';
-  };
-
-  const showPopup = (spot: SpotWithReports) => {
+  const showPopup = (spot: ParkingSpot) => {
     if (!map.current) return;
     popupRef.current?.remove();
 
-    const isFree = spot.status === 'free';
+    const diff = DIFFICULTY_META[spot.difficulty] ?? DIFFICULTY_META.moderate;
     const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
     const isApple = /iPhone|iPad|iPod|Macintosh/.test(ua);
     const directionsUrl = isApple
@@ -105,13 +103,16 @@ export function Map({ spots, selectedSpot, onSpotSelect, city, focusKey }: MapPr
       : `https://www.google.com/maps/dir/?api=1&destination=${spot.latitude},${spot.longitude}`;
 
     const html = `
-      <div style="font-family: system-ui, sans-serif; min-width: 150px;">
+      <div style="font-family: system-ui, sans-serif; min-width: 170px;">
         <div style="font-weight: 600; font-size: 13px; color: #111;">${spot.street_name}</div>
         <div style="font-size: 11px; color: #666; margin-bottom: 4px;">${spot.neighborhood}</div>
-        <div style="font-size: 12px; font-weight: 600; color: ${isFree ? '#059669' : '#dc2626'};">
-          ${isFree ? '✓ Free' : '✗ Taken'}
+        <div style="font-size: 12px; font-weight: 600; color: ${diff.color};">
+          ${diff.label} parking
         </div>
-        <div style="font-size: 11px; color: #888; margin-top: 2px;">${timeAgo(spot.last_report_time)}</div>
+        <div style="font-size: 11px; color: #444; margin-top: 2px;">${PARKING_TYPE_LABEL[spot.parking_type] ?? 'Free'}${
+          spot.best_times ? ` · Best: ${spot.best_times}` : ''
+        }</div>
+        ${spot.notes ? `<div style="font-size: 11px; color: #666; margin-top: 4px; line-height: 1.4;">${spot.notes}</div>` : ''}
         <a href="${directionsUrl}" target="_blank" rel="noopener noreferrer"
            style="display:inline-block; margin-top:8px; font-size:12px; font-weight:600; color:#2563eb; text-decoration:none;">
           Get directions →
@@ -124,22 +125,15 @@ export function Map({ spots, selectedSpot, onSpotSelect, city, focusKey }: MapPr
       .addTo(map.current);
   };
 
-  const addMarkers = (spotsToRender: SpotWithReports[]) => {
+  const addMarkers = (spotsToRender: ParkingSpot[]) => {
     if (!map.current) return;
 
     const zoom = map.current.getZoom();
     Object.values(markersRef.current).forEach((m) => m.remove());
     markersRef.current = {};
 
-    // Filter spots based on zoom and quality
-    const filteredSpots = spotsToRender.filter((spot) => {
-      // At low zoom, hide low-quality spots (fewer than 2 reports)
-      if (zoom < 13) return spot.recent_reports >= 2;
-      return true;
-    });
-
-    filteredSpots.forEach((spot) => {
-      const color = getStatusColor(spot.status);
+    spotsToRender.forEach((spot) => {
+      const diff = DIFFICULTY_META[spot.difficulty] ?? DIFFICULTY_META.moderate;
       const isSelected = selectedSpot?.id === spot.id;
 
       // Scale size with zoom level
@@ -158,13 +152,14 @@ export function Map({ spots, selectedSpot, onSpotSelect, city, focusKey }: MapPr
       hit.style.alignItems = 'center';
       hit.style.justifyContent = 'center';
       hit.style.cursor = 'pointer';
+      hit.style.position = 'relative';
       hit.title = spot.street_name;
 
       // The visible dot, centered inside the hit area
       const dot = document.createElement('div');
       dot.style.width = `${size}px`;
       dot.style.height = `${size}px`;
-      dot.style.backgroundColor = color;
+      dot.style.backgroundColor = diff.color;
       dot.style.borderRadius = '50%';
       dot.style.border = isSelected ? '3px solid #3b82f6' : '1.5px solid white';
       dot.style.boxShadow = '0 1px 3px rgba(0,0,0,0.4)';
@@ -176,7 +171,7 @@ export function Map({ spots, selectedSpot, onSpotSelect, city, focusKey }: MapPr
       if (zoom >= 15) {
         const label = document.createElement('div');
         label.style.position = 'absolute';
-        label.style.top = '-20px';
+        label.style.top = '-18px';
         label.style.left = '50%';
         label.style.transform = 'translateX(-50%)';
         label.style.fontSize = '11px';
@@ -184,6 +179,7 @@ export function Map({ spots, selectedSpot, onSpotSelect, city, focusKey }: MapPr
         label.style.color = '#111';
         label.style.whiteSpace = 'nowrap';
         label.style.pointerEvents = 'none';
+        label.style.textShadow = '0 0 3px #fff, 0 0 3px #fff';
         label.textContent = spot.street_name;
         hit.appendChild(label);
       }
@@ -210,15 +206,19 @@ export function Map({ spots, selectedSpot, onSpotSelect, city, focusKey }: MapPr
       />
       {/* Legend */}
       <div className="absolute bottom-4 left-4 bg-white rounded-lg p-3 shadow-lg text-sm">
-        <p className="font-semibold text-gray-700 mb-2">Status</p>
+        <p className="font-semibold text-gray-700 mb-2">Parking difficulty</p>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded-full bg-green-600"></div>
-            <span className="text-gray-700">Free</span>
+            <span className="text-gray-700">Easy</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded-full bg-amber-500"></div>
+            <span className="text-gray-700">Moderate</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded-full bg-red-600"></div>
-            <span className="text-gray-700">Taken</span>
+            <span className="text-gray-700">Hard</span>
           </div>
         </div>
       </div>

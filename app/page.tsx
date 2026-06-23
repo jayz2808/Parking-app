@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { SpotWithReports, City } from '@/types';
+import { ParkingSpot, City, Difficulty, DIFFICULTY_META, PARKING_TYPE_LABEL } from '@/types';
 import { Map } from '@/components/Map';
 import { SpotCard } from '@/components/SpotCard';
 import { AddSpotModal } from '@/components/AddSpotModal';
@@ -51,7 +51,7 @@ const CITIES: City[] = [
   },
 ];
 
-async function getSpotsWithReports(city: string): Promise<SpotWithReports[]> {
+async function getSpots(city: string): Promise<ParkingSpot[]> {
   try {
     const response = await fetch(`/api/spots?city=${city}`);
     const data = await response.json();
@@ -62,14 +62,16 @@ async function getSpotsWithReports(city: string): Promise<SpotWithReports[]> {
   }
 }
 
+const DIFFICULTY_FILTERS: ('all' | Difficulty)[] = ['all', 'easy', 'moderate', 'hard'];
+
 export default function Home() {
-  const [spots, setSpots] = useState<SpotWithReports[]>([]);
+  const [spots, setSpots] = useState<ParkingSpot[]>([]);
   const [selectedCity, setSelectedCity] = useState<City>(CITIES[0]);
-  const [selectedSpot, setSelectedSpot] = useState<SpotWithReports | null>(null);
+  const [selectedSpot, setSelectedSpot] = useState<ParkingSpot | null>(null);
   const [focusKey, setFocusKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [freeOnly, setFreeOnly] = useState(false);
+  const [difficultyFilter, setDifficultyFilter] = useState<'all' | Difficulty>('all');
   const [showAddSpot, setShowAddSpot] = useState(false);
   const [shareMsg, setShareMsg] = useState('');
   const pendingSpotIdRef = useRef<string | null>(null);
@@ -89,7 +91,7 @@ export default function Home() {
   useEffect(() => {
     const loadSpots = async () => {
       setIsLoading(true);
-      const data = await getSpotsWithReports(selectedCity.id);
+      const data = await getSpots(selectedCity.id);
       setSpots(data);
 
       // If we arrived via a shared link, select & zoom to that spot
@@ -107,27 +109,13 @@ export default function Home() {
     loadSpots();
   }, [selectedCity]);
 
-  // Auto-refresh every 30s so parking status stays current
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      const updated = await getSpotsWithReports(selectedCity.id);
-      setSpots(updated);
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [selectedCity]);
-
-  const handleReportSubmitted = async () => {
-    const updated = await getSpotsWithReports(selectedCity.id);
-    setSpots(updated);
-  };
-
   // Select a spot AND zoom the map to it
-  const handleSpotSelect = (spot: SpotWithReports) => {
+  const handleSpotSelect = (spot: ParkingSpot) => {
     setSelectedSpot(spot);
     setFocusKey((k) => k + 1);
   };
 
-  const handleShare = async (spot: SpotWithReports) => {
+  const handleShare = async (spot: ParkingSpot) => {
     const result = await shareSpot(selectedCity.id, spot.id, spot.street_name);
     if (result === 'copied') {
       setShareMsg('Link copied!');
@@ -140,20 +128,24 @@ export default function Home() {
 
   const handleSpotAdded = async () => {
     setShowAddSpot(false);
-    const updated = await getSpotsWithReports(selectedCity.id);
+    const updated = await getSpots(selectedCity.id);
     setSpots(updated);
   };
 
-  const freeCount = spots.filter((s) => s.status === 'free').length;
-  const takenCount = spots.length - freeCount;
+  const easyCount = spots.filter((s) => s.difficulty === 'easy').length;
+  const hardCount = spots.filter((s) => s.difficulty === 'hard').length;
 
   const filteredSpots = spots.filter((spot) => {
     const matchesSearch =
       spot.street_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       spot.neighborhood.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFree = !freeOnly || spot.status === 'free';
-    return matchesSearch && matchesFree;
+    const matchesDifficulty = difficultyFilter === 'all' || spot.difficulty === difficultyFilter;
+    return matchesSearch && matchesDifficulty;
   });
+
+  const selectedDiff = selectedSpot
+    ? DIFFICULTY_META[selectedSpot.difficulty] ?? DIFFICULTY_META.moderate
+    : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
@@ -161,9 +153,11 @@ export default function Home() {
       <div className="border-b border-slate-700 bg-gradient-to-r from-slate-900/50 via-slate-800/50 to-slate-900/50 backdrop-blur">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
           <h1 className="text-3xl sm:text-5xl font-bold text-white mb-1 sm:mb-2 leading-tight tracking-tight">
-            Parking Spots
+            Parking Cheat Sheet
           </h1>
-          <p className="text-slate-300 font-medium text-sm sm:text-base">Find free parking in real-time</p>
+          <p className="text-slate-300 font-medium text-sm sm:text-base">
+            Know where to park before you go — Bay Area local knowledge
+          </p>
         </div>
       </div>
 
@@ -172,15 +166,19 @@ export default function Home() {
           {/* Map Section */}
           <div className="lg:col-span-2">
             <div className="lg:sticky lg:top-8 space-y-4">
-              {/* Availability summary */}
+              {/* Difficulty summary */}
               <div className="flex gap-3">
                 <div className="flex-1 bg-green-600/15 border border-green-600/30 rounded-xl px-4 py-3 text-center">
-                  <p className="text-2xl font-bold text-green-400">{freeCount}</p>
-                  <p className="text-xs text-green-300/80 font-medium">Free now</p>
+                  <p className="text-2xl font-bold text-green-400">{easyCount}</p>
+                  <p className="text-xs text-green-300/80 font-medium">Easy areas</p>
+                </div>
+                <div className="flex-1 bg-slate-600/20 border border-slate-500/30 rounded-xl px-4 py-3 text-center">
+                  <p className="text-2xl font-bold text-slate-200">{spots.length}</p>
+                  <p className="text-xs text-slate-300/80 font-medium">Total tips</p>
                 </div>
                 <div className="flex-1 bg-red-600/15 border border-red-600/30 rounded-xl px-4 py-3 text-center">
-                  <p className="text-2xl font-bold text-red-400">{takenCount}</p>
-                  <p className="text-xs text-red-300/80 font-medium">Taken</p>
+                  <p className="text-2xl font-bold text-red-400">{hardCount}</p>
+                  <p className="text-xs text-red-300/80 font-medium">Avoid areas</p>
                 </div>
               </div>
 
@@ -194,16 +192,30 @@ export default function Home() {
                 />
               </div>
 
-              {selectedSpot && (
+              {selectedSpot && selectedDiff && (
                 <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl p-5 border border-slate-600">
-                  <p className="text-white font-semibold text-lg">{selectedSpot.street_name}</p>
-                  <p className="text-slate-400 text-sm mt-2">{selectedSpot.neighborhood}, {selectedCity.name}</p>
-                  <div className="flex justify-between mt-3 text-sm text-slate-300">
-                    <span className={selectedSpot.status === 'free' ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
-                      {selectedSpot.status === 'free' ? '✓ Free' : '✗ Taken'}
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-white font-semibold text-lg">{selectedSpot.street_name}</p>
+                      <p className="text-slate-400 text-sm mt-1">{selectedSpot.neighborhood}, {selectedCity.name}</p>
+                    </div>
+                    <span className={`${selectedDiff.chip} rounded px-2.5 py-1 text-white text-xs font-semibold shrink-0`}>
+                      {selectedDiff.label}
                     </span>
-                    <span className="text-slate-400">{selectedSpot.recent_reports} reports</span>
                   </div>
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    <span className="bg-slate-600/60 text-slate-200 text-xs px-2 py-0.5 rounded">
+                      {PARKING_TYPE_LABEL[selectedSpot.parking_type] ?? 'Free'}
+                    </span>
+                    {selectedSpot.best_times && (
+                      <span className="bg-slate-600/60 text-slate-200 text-xs px-2 py-0.5 rounded">
+                        Best: {selectedSpot.best_times}
+                      </span>
+                    )}
+                  </div>
+                  {selectedSpot.notes && (
+                    <p className="text-slate-300 text-sm mt-3 leading-relaxed">{selectedSpot.notes}</p>
+                  )}
                   <div className="flex gap-2 mt-4">
                     <button
                       onClick={() => openDirections(selectedSpot.latitude, selectedSpot.longitude)}
@@ -226,7 +238,7 @@ export default function Home() {
           {/* Sidebar */}
           <div className="space-y-4 lg:max-h-[calc(100vh-200px)] lg:overflow-y-auto lg:pr-2">
             <div className="lg:sticky lg:top-0 bg-gradient-to-b from-slate-900 to-transparent pb-4 space-y-3">
-              <h2 className="text-2xl font-bold text-white">Spots</h2>
+              <h2 className="text-2xl font-bold text-white">Parking tips</h2>
 
               <select
                 value={selectedCity.id}
@@ -246,26 +258,35 @@ export default function Home() {
                 className="w-full bg-slate-700 text-white placeholder-slate-400 px-4 py-2.5 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none transition text-sm"
               />
 
-              <button
-                onClick={() => setFreeOnly((v) => !v)}
-                className={`w-full px-4 py-2.5 rounded-lg font-medium text-sm transition border ${
-                  freeOnly
-                    ? 'bg-green-600 border-green-500 text-white'
-                    : 'bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600'
-                }`}
-              >
-                {freeOnly ? '✓ Showing free only' : 'Show free spots only'}
-              </button>
+              <div className="grid grid-cols-4 gap-2">
+                {DIFFICULTY_FILTERS.map((f) => {
+                  const active = difficultyFilter === f;
+                  const label = f === 'all' ? 'All' : DIFFICULTY_META[f].label;
+                  return (
+                    <button
+                      key={f}
+                      onClick={() => setDifficultyFilter(f)}
+                      className={`px-2 py-2 rounded-lg font-medium text-xs transition border ${
+                        active
+                          ? 'bg-blue-600 border-blue-500 text-white'
+                          : 'bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
 
               <button
                 onClick={() => setShowAddSpot(true)}
                 className="w-full px-4 py-2.5 rounded-lg font-medium text-sm transition bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-1.5"
               >
-                <span className="text-lg leading-none">+</span> Add a parking spot
+                <span className="text-lg leading-none">+</span> Add a parking tip
               </button>
 
               <p className="text-xs text-slate-400">
-                Showing {filteredSpots.length} of {spots.length} spots
+                Showing {filteredSpots.length} of {spots.length} tips
               </p>
             </div>
 
@@ -275,13 +296,17 @@ export default function Home() {
                 className="cursor-pointer transform transition-transform hover:scale-105"
                 onClick={() => handleSpotSelect(spot)}
               >
-                <SpotCard spot={spot} onReportSubmitted={handleReportSubmitted} />
+                <SpotCard
+                  spot={spot}
+                  onShare={handleShare}
+                  shareLabel={selectedSpot?.id === spot.id ? shareMsg || undefined : undefined}
+                />
               </div>
             ))}
 
             {filteredSpots.length === 0 && (
               <div className="text-center py-8">
-                <p className="text-slate-400 text-sm">No spots found</p>
+                <p className="text-slate-400 text-sm">No tips yet — be the first to add one!</p>
               </div>
             )}
           </div>
@@ -289,7 +314,7 @@ export default function Home() {
       ) : (
         <div className="text-center py-20">
           <div className="inline-block animate-spin h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-          <p className="mt-4 text-slate-400 text-lg">Loading parking spots...</p>
+          <p className="mt-4 text-slate-400 text-lg">Loading parking tips...</p>
         </div>
       )}
 

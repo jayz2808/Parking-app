@@ -9,11 +9,11 @@ export async function shareSpot(
   streetName: string
 ): Promise<'shared' | 'copied' | 'failed'> {
   const url = `${window.location.origin}/?city=${cityId}&spot=${spotId}`;
-  const text = `Parking at ${streetName}`;
+  const text = `Parking tip for ${streetName}`;
 
   try {
     if (navigator.share) {
-      await navigator.share({ title: 'Parking Spots', text, url });
+      await navigator.share({ title: 'Parking Cheat Sheet', text, url });
       return 'shared';
     }
     await navigator.clipboard.writeText(url);

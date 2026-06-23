@@ -5,10 +5,22 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+const DIFFICULTIES = ['easy', 'moderate', 'hard'];
+const PARKING_TYPES = ['free', 'metered', 'permit', 'mixed'];
+
 export async function POST(request: Request) {
   try {
-    const { latitude, longitude, city, neighborhood, street_name, notes, status } =
-      await request.json();
+    const {
+      latitude,
+      longitude,
+      city,
+      neighborhood,
+      street_name,
+      difficulty,
+      parking_type,
+      best_times,
+      notes,
+    } = await request.json();
 
     if (
       typeof latitude !== 'number' ||
@@ -19,7 +31,6 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Create the spot
     const { data: spot, error: spotError } = await supabase
       .from('parking_spots')
       .insert([
@@ -29,6 +40,9 @@ export async function POST(request: Request) {
           city,
           neighborhood: neighborhood || 'Unknown',
           street_name,
+          difficulty: DIFFICULTIES.includes(difficulty) ? difficulty : 'moderate',
+          parking_type: PARKING_TYPES.includes(parking_type) ? parking_type : 'free',
+          best_times: best_times || null,
           notes: notes || null,
         },
       ])
@@ -38,17 +52,6 @@ export async function POST(request: Request) {
     if (spotError) {
       console.error('Supabase error (add spot):', spotError);
       return Response.json({ error: spotError.message }, { status: 500 });
-    }
-
-    // Seed an initial status report so the new spot shows up correctly
-    if (spot && (status === 'free' || status === 'taken')) {
-      await supabase.from('parking_reports').insert([
-        {
-          spot_id: spot.id,
-          status,
-          timestamp: new Date().toISOString(),
-        },
-      ]);
     }
 
     return Response.json({ success: true, spot });
@@ -63,60 +66,18 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const city = searchParams.get('city') || 'sf';
 
-    // Fetch parking spots for the city
-    const { data: spotsData, error: spotsError } = await supabase
+    const { data: spots, error } = await supabase
       .from('parking_spots')
       .select('*')
-      .eq('city', city);
+      .eq('city', city)
+      .order('created_at', { ascending: false });
 
-    if (spotsError) {
-      console.error('Supabase error:', spotsError);
-      return Response.json(
-        { spots: [] },
-        { status: 200 }
-      );
+    if (error) {
+      console.error('Supabase error:', error);
+      return Response.json({ spots: [] }, { status: 200 });
     }
 
-    if (!spotsData || spotsData.length === 0) {
-      return Response.json({ spots: [] });
-    }
-
-    // Fetch reports for the last hour
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-
-    const { data: reportsData, error: reportsError } = await supabase
-      .from('parking_reports')
-      .select('*')
-      .in('spot_id', spotsData.map(s => s.id))
-      .gte('timestamp', oneHourAgo);
-
-    if (reportsError) {
-      console.error('Reports error:', reportsError);
-      return Response.json({ spots: spotsData });
-    }
-
-    // Aggregate reports for each spot
-    const spotsWithReports = spotsData.map(spot => {
-      const spotReports = (reportsData || []).filter(r => r.spot_id === spot.id);
-
-      // Get most recent report status
-      const mostRecentReport = spotReports.length > 0
-        ? spotReports.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0]
-        : null;
-
-      const lastReportTime = mostRecentReport?.timestamp || spot.created_at || new Date().toISOString();
-      const status = mostRecentReport?.status || 'free';
-
-      return {
-        ...spot,
-        status,
-        recent_reports: spotReports.length,
-        last_report_time: lastReportTime,
-        report_count_1h: spotReports.length,
-      };
-    });
-
-    return Response.json({ spots: spotsWithReports });
+    return Response.json({ spots: spots || [] });
   } catch (error) {
     console.error('Error:', error);
     return Response.json(

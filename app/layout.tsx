@@ -2,11 +2,11 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Parking Spots - Find Free Parking',
-  description: 'Real-time parking availability in the Bay Area',
+  title: 'Parking Cheat Sheet - Bay Area',
+  description: 'Local knowledge on where to park in the Bay Area — difficulty, costs, and best times',
   appleWebApp: {
     capable: true,
-    title: 'Parking Spots',
+    title: 'Parking Cheat Sheet',
     statusBarStyle: 'black-translucent',
   },
 };
