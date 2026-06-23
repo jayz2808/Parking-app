@@ -23,6 +23,22 @@ const CITIES: City[] = [
     neighborhoods: ['Downtown', 'Lake Merritt', 'Rockridge', 'Piedmont', 'Fruitvale'],
   },
   {
+    id: 'berkeley',
+    name: 'Berkeley',
+    latitude: 37.8715,
+    longitude: -122.2727,
+    zoom: 13,
+    neighborhoods: ['Downtown', 'Telegraph Ave', 'North Berkeley', 'South Berkeley'],
+  },
+  {
+    id: 'palo-alto',
+    name: 'Palo Alto',
+    latitude: 37.4419,
+    longitude: -122.143,
+    zoom: 13,
+    neighborhoods: ['Downtown', 'California Ave', 'Professional Park'],
+  },
+  {
     id: 'san-jose',
     name: 'San Jose',
     latitude: 37.3382,
@@ -47,8 +63,10 @@ export default function Home() {
   const [spots, setSpots] = useState<SpotWithReports[]>([]);
   const [selectedCity, setSelectedCity] = useState<City>(CITIES[0]);
   const [selectedSpot, setSelectedSpot] = useState<SpotWithReports | null>(null);
+  const [focusKey, setFocusKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [freeOnly, setFreeOnly] = useState(false);
 
   useEffect(() => {
     const loadSpots = async () => {
@@ -61,16 +79,36 @@ export default function Home() {
     loadSpots();
   }, [selectedCity]);
 
+  // Auto-refresh every 30s so parking status stays current
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const updated = await getSpotsWithReports(selectedCity.id);
+      setSpots(updated);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [selectedCity]);
+
   const handleReportSubmitted = async () => {
     const updated = await getSpotsWithReports(selectedCity.id);
     setSpots(updated);
   };
 
-  const filteredSpots = spots.filter(
-    (spot) =>
+  // Select a spot AND zoom the map to it
+  const handleSpotSelect = (spot: SpotWithReports) => {
+    setSelectedSpot(spot);
+    setFocusKey((k) => k + 1);
+  };
+
+  const freeCount = spots.filter((s) => s.status === 'free').length;
+  const takenCount = spots.length - freeCount;
+
+  const filteredSpots = spots.filter((spot) => {
+    const matchesSearch =
       spot.street_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      spot.neighborhood.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      spot.neighborhood.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFree = !freeOnly || spot.status === 'free';
+    return matchesSearch && matchesFree;
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
@@ -89,8 +127,26 @@ export default function Home() {
           {/* Map Section */}
           <div className="lg:col-span-2">
             <div className="sticky top-8 space-y-4">
+              {/* Availability summary */}
+              <div className="flex gap-3">
+                <div className="flex-1 bg-green-600/15 border border-green-600/30 rounded-xl px-4 py-3 text-center">
+                  <p className="text-2xl font-bold text-green-400">{freeCount}</p>
+                  <p className="text-xs text-green-300/80 font-medium">Free now</p>
+                </div>
+                <div className="flex-1 bg-red-600/15 border border-red-600/30 rounded-xl px-4 py-3 text-center">
+                  <p className="text-2xl font-bold text-red-400">{takenCount}</p>
+                  <p className="text-xs text-red-300/80 font-medium">Taken</p>
+                </div>
+              </div>
+
               <div className="bg-slate-800 rounded-2xl overflow-hidden shadow-2xl">
-                <Map spots={spots} selectedSpot={selectedSpot} onSpotSelect={setSelectedSpot} city={selectedCity} />
+                <Map
+                  spots={spots}
+                  selectedSpot={selectedSpot}
+                  onSpotSelect={handleSpotSelect}
+                  city={selectedCity}
+                  focusKey={focusKey}
+                />
               </div>
 
               {selectedSpot && (
@@ -131,18 +187,27 @@ export default function Home() {
                 className="w-full bg-slate-700 text-white placeholder-slate-400 px-4 py-2.5 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none transition text-sm"
               />
 
-              {searchQuery && (
-                <p className="text-xs text-slate-400">
-                  Found {filteredSpots.length} spots
-                </p>
-              )}
+              <button
+                onClick={() => setFreeOnly((v) => !v)}
+                className={`w-full px-4 py-2.5 rounded-lg font-medium text-sm transition border ${
+                  freeOnly
+                    ? 'bg-green-600 border-green-500 text-white'
+                    : 'bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600'
+                }`}
+              >
+                {freeOnly ? '✓ Showing free only' : 'Show free spots only'}
+              </button>
+
+              <p className="text-xs text-slate-400">
+                Showing {filteredSpots.length} of {spots.length} spots
+              </p>
             </div>
 
             {filteredSpots.map((spot) => (
               <div
                 key={spot.id}
                 className="cursor-pointer transform transition-transform hover:scale-105"
-                onClick={() => setSelectedSpot(spot)}
+                onClick={() => handleSpotSelect(spot)}
               >
                 <SpotCard spot={spot} onReportSubmitted={handleReportSubmitted} />
               </div>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { SpotWithReports } from '@/types';
+import { timeAgo } from '@/lib/relativeTime';
 import { ReportModal } from './ReportModal';
 
 interface SpotCardProps {
@@ -30,8 +31,8 @@ export function SpotCard({ spot, onReportSubmitted }: SpotCardProps) {
         </div>
 
         <div className="flex items-center justify-between text-xs text-slate-400 mb-3">
-          <span>{spot.recent_reports} reports</span>
-          <span className="text-slate-500">{spot.last_report_time ? new Date(spot.last_report_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'N/A'}</span>
+          <span>{spot.recent_reports} {spot.recent_reports === 1 ? 'report' : 'reports'}</span>
+          <span className="text-slate-500">{timeAgo(spot.last_report_time)}</span>
         </div>
 
         <button
