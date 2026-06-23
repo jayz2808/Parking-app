@@ -35,6 +35,12 @@ export function Map({ spots, selectedSpot, onSpotSelect }: MapProps) {
       center: [-122.2709, 37.8044],
       zoom: 11,
     });
+
+    // Ensure the map sizes itself correctly once the container is laid out
+    map.current.on('load', () => {
+      map.current?.resize();
+      addMarkers(spots);
+    });
   }, []);
 
   useEffect(() => {
@@ -79,8 +85,8 @@ export function Map({ spots, selectedSpot, onSpotSelect }: MapProps) {
     <div className="relative">
       <div
         ref={mapContainer}
-        className="w-full h-96 rounded-lg overflow-hidden border border-gray-200"
-        style={{ background: '#e5e7eb' }}
+        className="w-full rounded-lg overflow-hidden border border-gray-200"
+        style={{ background: '#e5e7eb', height: '400px', minHeight: '400px' }}
       />
       {/* Legend */}
       <div className="absolute bottom-4 left-4 bg-white rounded-lg p-3 shadow-lg text-sm">
