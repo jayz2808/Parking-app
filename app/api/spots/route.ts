@@ -5,6 +5,59 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+export async function POST(request: Request) {
+  try {
+    const { latitude, longitude, city, neighborhood, street_name, notes, status } =
+      await request.json();
+
+    if (
+      typeof latitude !== 'number' ||
+      typeof longitude !== 'number' ||
+      !city ||
+      !street_name
+    ) {
+      return Response.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    // Create the spot
+    const { data: spot, error: spotError } = await supabase
+      .from('parking_spots')
+      .insert([
+        {
+          latitude,
+          longitude,
+          city,
+          neighborhood: neighborhood || 'Unknown',
+          street_name,
+          notes: notes || null,
+        },
+      ])
+      .select()
+      .single();
+
+    if (spotError) {
+      console.error('Supabase error (add spot):', spotError);
+      return Response.json({ error: spotError.message }, { status: 500 });
+    }
+
+    // Seed an initial status report so the new spot shows up correctly
+    if (spot && (status === 'free' || status === 'taken')) {
+      await supabase.from('parking_reports').insert([
+        {
+          spot_id: spot.id,
+          status,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+    }
+
+    return Response.json({ success: true, spot });
+  } catch (error) {
+    console.error('Error:', error);
+    return Response.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);

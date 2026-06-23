@@ -1,9 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SpotWithReports, City } from '@/types';
 import { Map } from '@/components/Map';
 import { SpotCard } from '@/components/SpotCard';
+import { AddSpotModal } from '@/components/AddSpotModal';
+import { openDirections } from '@/lib/directions';
+import { shareSpot } from '@/lib/share';
 
 const CITIES: City[] = [
   {
@@ -67,13 +70,38 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [freeOnly, setFreeOnly] = useState(false);
+  const [showAddSpot, setShowAddSpot] = useState(false);
+  const [shareMsg, setShareMsg] = useState('');
+  const pendingSpotIdRef = useRef<string | null>(null);
+
+  // Handle deep links like /?city=sf&spot=<id> shared by other users
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const spotParam = params.get('spot');
+    const cityParam = params.get('city');
+    if (spotParam) pendingSpotIdRef.current = spotParam;
+    if (cityParam) {
+      const c = CITIES.find((c) => c.id === cityParam);
+      if (c) setSelectedCity(c);
+    }
+  }, []);
 
   useEffect(() => {
     const loadSpots = async () => {
       setIsLoading(true);
       const data = await getSpotsWithReports(selectedCity.id);
       setSpots(data);
-      setSelectedSpot(data[0] || null);
+
+      // If we arrived via a shared link, select & zoom to that spot
+      const pending = pendingSpotIdRef.current;
+      const match = pending ? data.find((s) => s.id === pending) : null;
+      if (match) {
+        setSelectedSpot(match);
+        setFocusKey((k) => k + 1);
+        pendingSpotIdRef.current = null;
+      } else {
+        setSelectedSpot(data[0] || null);
+      }
       setIsLoading(false);
     };
     loadSpots();
@@ -97,6 +125,23 @@ export default function Home() {
   const handleSpotSelect = (spot: SpotWithReports) => {
     setSelectedSpot(spot);
     setFocusKey((k) => k + 1);
+  };
+
+  const handleShare = async (spot: SpotWithReports) => {
+    const result = await shareSpot(selectedCity.id, spot.id, spot.street_name);
+    if (result === 'copied') {
+      setShareMsg('Link copied!');
+      setTimeout(() => setShareMsg(''), 2000);
+    } else if (result === 'failed') {
+      setShareMsg('Could not share');
+      setTimeout(() => setShareMsg(''), 2000);
+    }
+  };
+
+  const handleSpotAdded = async () => {
+    setShowAddSpot(false);
+    const updated = await getSpotsWithReports(selectedCity.id);
+    setSpots(updated);
   };
 
   const freeCount = spots.filter((s) => s.status === 'free').length;
@@ -159,6 +204,20 @@ export default function Home() {
                     </span>
                     <span className="text-slate-400">{selectedSpot.recent_reports} reports</span>
                   </div>
+                  <div className="flex gap-2 mt-4">
+                    <button
+                      onClick={() => openDirections(selectedSpot.latitude, selectedSpot.longitude)}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2.5 rounded-lg font-medium text-sm transition"
+                    >
+                      Directions
+                    </button>
+                    <button
+                      onClick={() => handleShare(selectedSpot)}
+                      className="flex-1 bg-slate-600 hover:bg-slate-500 text-white px-3 py-2.5 rounded-lg font-medium text-sm transition"
+                    >
+                      {shareMsg || 'Share'}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -198,6 +257,13 @@ export default function Home() {
                 {freeOnly ? '✓ Showing free only' : 'Show free spots only'}
               </button>
 
+              <button
+                onClick={() => setShowAddSpot(true)}
+                className="w-full px-4 py-2.5 rounded-lg font-medium text-sm transition bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-1.5"
+              >
+                <span className="text-lg leading-none">+</span> Add a parking spot
+              </button>
+
               <p className="text-xs text-slate-400">
                 Showing {filteredSpots.length} of {spots.length} spots
               </p>
@@ -226,6 +292,13 @@ export default function Home() {
           <p className="mt-4 text-slate-400 text-lg">Loading parking spots...</p>
         </div>
       )}
+
+      <AddSpotModal
+        city={selectedCity}
+        isOpen={showAddSpot}
+        onClose={() => setShowAddSpot(false)}
+        onAdded={handleSpotAdded}
+      />
     </div>
   );
 }

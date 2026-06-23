@@ -131,26 +131,40 @@ export function Map({ spots, selectedSpot, onSpotSelect, city, focusKey }: MapPr
     markersRef.current = {};
 
     spotsToRender.forEach((spot) => {
-      const el = document.createElement('div');
       const color = getStatusColor(spot.status);
       const isSelected = selectedSpot?.id === spot.id;
       const size = isSelected ? 18 : 12;
 
-      el.style.width = `${size}px`;
-      el.style.height = `${size}px`;
-      el.style.backgroundColor = color;
-      el.style.borderRadius = '50%';
-      el.style.border = isSelected ? '3px solid #3b82f6' : '1.5px solid white';
-      el.style.cursor = 'pointer';
-      el.style.boxShadow = '0 1px 3px rgba(0,0,0,0.4)';
-      el.style.transition = 'width 0.15s, height 0.15s';
-      el.title = spot.street_name;
+      // Larger transparent hit area so dots are easy to click without looking big
+      const hit = document.createElement('div');
+      hit.style.width = '30px';
+      hit.style.height = '30px';
+      hit.style.display = 'flex';
+      hit.style.alignItems = 'center';
+      hit.style.justifyContent = 'center';
+      hit.style.cursor = 'pointer';
+      hit.title = spot.street_name;
 
-      const marker = new mapboxgl.Marker(el)
+      // The visible dot, centered inside the hit area
+      const dot = document.createElement('div');
+      dot.style.width = `${size}px`;
+      dot.style.height = `${size}px`;
+      dot.style.backgroundColor = color;
+      dot.style.borderRadius = '50%';
+      dot.style.border = isSelected ? '3px solid #3b82f6' : '1.5px solid white';
+      dot.style.boxShadow = '0 1px 3px rgba(0,0,0,0.4)';
+      dot.style.transition = 'transform 0.12s ease';
+      hit.appendChild(dot);
+
+      // Subtle grow on hover so it's clear the dot is clickable
+      hit.addEventListener('mouseenter', () => { dot.style.transform = 'scale(1.4)'; });
+      hit.addEventListener('mouseleave', () => { dot.style.transform = 'scale(1)'; });
+
+      const marker = new mapboxgl.Marker({ element: hit })
         .setLngLat([spot.longitude, spot.latitude])
         .addTo(map.current!);
 
-      el.addEventListener('click', () => onSpotSelect(spot));
+      hit.addEventListener('click', () => onSpotSelect(spot));
       markersRef.current[spot.id] = marker;
     });
   };
