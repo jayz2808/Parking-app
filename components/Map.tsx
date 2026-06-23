@@ -98,6 +98,12 @@ export function Map({ spots, selectedSpot, onSpotSelect, city, focusKey }: MapPr
     popupRef.current?.remove();
 
     const isFree = spot.status === 'free';
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+    const isApple = /iPhone|iPad|iPod|Macintosh/.test(ua);
+    const directionsUrl = isApple
+      ? `https://maps.apple.com/?daddr=${spot.latitude},${spot.longitude}&dirflg=d`
+      : `https://www.google.com/maps/dir/?api=1&destination=${spot.latitude},${spot.longitude}`;
+
     const html = `
       <div style="font-family: system-ui, sans-serif; min-width: 150px;">
         <div style="font-weight: 600; font-size: 13px; color: #111;">${spot.street_name}</div>
@@ -106,6 +112,10 @@ export function Map({ spots, selectedSpot, onSpotSelect, city, focusKey }: MapPr
           ${isFree ? '✓ Free' : '✗ Taken'}
         </div>
         <div style="font-size: 11px; color: #888; margin-top: 2px;">${timeAgo(spot.last_report_time)}</div>
+        <a href="${directionsUrl}" target="_blank" rel="noopener noreferrer"
+           style="display:inline-block; margin-top:8px; font-size:12px; font-weight:600; color:#2563eb; text-decoration:none;">
+          Get directions →
+        </a>
       </div>`;
 
     popupRef.current = new mapboxgl.Popup({ offset: 16, closeButton: true })
