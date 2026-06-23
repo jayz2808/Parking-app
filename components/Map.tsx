@@ -127,13 +127,28 @@ export function Map({ spots, selectedSpot, onSpotSelect, city, focusKey }: MapPr
   const addMarkers = (spotsToRender: SpotWithReports[]) => {
     if (!map.current) return;
 
+    const zoom = map.current.getZoom();
     Object.values(markersRef.current).forEach((m) => m.remove());
     markersRef.current = {};
 
-    spotsToRender.forEach((spot) => {
+    // Filter spots based on zoom and quality
+    const filteredSpots = spotsToRender.filter((spot) => {
+      // At low zoom, hide low-quality spots (fewer than 2 reports)
+      if (zoom < 13) return spot.recent_reports >= 2;
+      return true;
+    });
+
+    filteredSpots.forEach((spot) => {
       const color = getStatusColor(spot.status);
       const isSelected = selectedSpot?.id === spot.id;
-      const size = isSelected ? 18 : 12;
+
+      // Scale size with zoom level
+      const baseSize = isSelected ? 18 : 12;
+      const scaleFactor = Math.min(1 + (zoom - 12) * 0.15, 1.5);
+      const size = Math.round(baseSize * scaleFactor);
+
+      // Higher opacity at higher zoom levels
+      const opacity = Math.min(0.7 + (zoom - 12) * 0.06, 1);
 
       // Larger transparent hit area so dots are easy to click without looking big
       const hit = document.createElement('div');
@@ -153,8 +168,25 @@ export function Map({ spots, selectedSpot, onSpotSelect, city, focusKey }: MapPr
       dot.style.borderRadius = '50%';
       dot.style.border = isSelected ? '3px solid #3b82f6' : '1.5px solid white';
       dot.style.boxShadow = '0 1px 3px rgba(0,0,0,0.4)';
+      dot.style.opacity = opacity.toString();
       dot.style.transition = 'transform 0.12s ease';
       hit.appendChild(dot);
+
+      // Show street name label at higher zoom levels
+      if (zoom >= 15) {
+        const label = document.createElement('div');
+        label.style.position = 'absolute';
+        label.style.top = '-20px';
+        label.style.left = '50%';
+        label.style.transform = 'translateX(-50%)';
+        label.style.fontSize = '11px';
+        label.style.fontWeight = '600';
+        label.style.color = '#111';
+        label.style.whiteSpace = 'nowrap';
+        label.style.pointerEvents = 'none';
+        label.textContent = spot.street_name;
+        hit.appendChild(label);
+      }
 
       // Subtle grow on hover so it's clear the dot is clickable
       hit.addEventListener('mouseenter', () => { dot.style.transform = 'scale(1.4)'; });
