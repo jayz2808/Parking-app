@@ -149,8 +149,8 @@ export function Map({ spots, selectedSpot, onSpotSelect, city, focusKey }: MapPr
     <div className="relative">
       <div
         ref={mapContainer}
-        className="w-full rounded-lg overflow-hidden border border-gray-200"
-        style={{ background: '#e5e7eb', height: '400px', minHeight: '400px' }}
+        className="w-full rounded-lg overflow-hidden border border-gray-200 h-[320px] sm:h-[400px]"
+        style={{ background: '#e5e7eb', minHeight: '320px' }}
       />
       {/* Legend */}
       <div className="absolute bottom-4 left-4 bg-white rounded-lg p-3 shadow-lg text-sm">

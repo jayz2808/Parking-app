@@ -36,8 +36,11 @@ export function SpotCard({ spot, onReportSubmitted }: SpotCardProps) {
         </div>
 
         <button
-          onClick={() => setShowReportModal(true)}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded font-medium text-sm transition"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowReportModal(true);
+          }}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2.5 rounded-lg font-medium text-sm transition"
         >
           Report Status
         </button>

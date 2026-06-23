@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { SpotWithReports } from '@/types';
 
 interface ReportModalProps {
@@ -13,9 +14,12 @@ interface ReportModalProps {
 export function ReportModal({ spot, isOpen, onClose, onSubmit }: ReportModalProps) {
   const [status, setStatus] = useState<'free' | 'taken'>('free');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
   const [error, setError] = useState('');
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const handleSubmit = async () => {
     setError('');
@@ -44,9 +48,15 @@ export function ReportModal({ spot, isOpen, onClose, onSubmit }: ReportModalProp
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-slate-800 rounded-xl p-6 max-w-md w-full mx-4 border border-slate-700">
+  return createPortal(
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-slate-800 rounded-xl p-6 max-w-md w-full border border-slate-700"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="text-xl font-bold text-white mb-2">Report Parking Status</h2>
         <p className="text-slate-400 text-sm mb-4">{spot.street_name}</p>
 
@@ -92,6 +102,7 @@ export function ReportModal({ spot, isOpen, onClose, onSubmit }: ReportModalProp
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

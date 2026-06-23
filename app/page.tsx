@@ -114,19 +114,19 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
       {/* Header */}
       <div className="border-b border-slate-700 bg-gradient-to-r from-slate-900/50 via-slate-800/50 to-slate-900/50 backdrop-blur">
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <h1 className="text-5xl font-bold text-white mb-2 leading-tight tracking-tight">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+          <h1 className="text-3xl sm:text-5xl font-bold text-white mb-1 sm:mb-2 leading-tight tracking-tight">
             Parking Spots
           </h1>
-          <p className="text-slate-300 font-medium">Find free parking in real-time</p>
+          <p className="text-slate-300 font-medium text-sm sm:text-base">Find free parking in real-time</p>
         </div>
       </div>
 
       {!isLoading ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8 max-w-7xl mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8 max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
           {/* Map Section */}
           <div className="lg:col-span-2">
-            <div className="sticky top-8 space-y-4">
+            <div className="lg:sticky lg:top-8 space-y-4">
               {/* Availability summary */}
               <div className="flex gap-3">
                 <div className="flex-1 bg-green-600/15 border border-green-600/30 rounded-xl px-4 py-3 text-center">
@@ -165,8 +165,8 @@ export default function Home() {
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
-            <div className="sticky top-0 bg-gradient-to-b from-slate-900 to-transparent pb-4 space-y-3">
+          <div className="space-y-4 lg:max-h-[calc(100vh-200px)] lg:overflow-y-auto lg:pr-2">
+            <div className="lg:sticky lg:top-0 bg-gradient-to-b from-slate-900 to-transparent pb-4 space-y-3">
               <h2 className="text-2xl font-bold text-white">Spots</h2>
 
               <select
