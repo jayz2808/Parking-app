@@ -55,9 +55,6 @@ export function Map({ spots, selectedSpot, onSpotSelect, city, focusKey }: MapPr
       map.current?.resize();
       addMarkers(spots);
     });
-
-    // Re-render markers on zoom so size/labels track the zoom level
-    map.current.on('zoomend', () => addMarkers(spots));
   }, []);
 
   useEffect(() => {

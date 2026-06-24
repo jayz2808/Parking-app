@@ -236,8 +236,8 @@ export default function Home() {
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-4 lg:max-h-[calc(100vh-200px)] lg:overflow-y-auto lg:pr-2">
-            <div className="lg:sticky lg:top-0 bg-gradient-to-b from-slate-900 to-transparent pb-4 space-y-3">
+          <div className="space-y-4">
+            <div className="bg-gradient-to-b from-slate-900 to-transparent pb-4 space-y-3">
               <h2 className="text-2xl font-bold text-white">Parking tips</h2>
 
               <select
