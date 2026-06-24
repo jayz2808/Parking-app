@@ -165,7 +165,7 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8 max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
           {/* Map Section */}
           <div className="lg:col-span-2">
-            <div className="space-y-4">
+            <div className="lg:sticky lg:top-8 space-y-4">
               {/* Difficulty summary */}
               <div className="flex gap-3">
                 <div className="flex-1 bg-green-600/15 border border-green-600/30 rounded-xl px-4 py-3 text-center">
@@ -236,8 +236,8 @@ export default function Home() {
           </div>
 
           {/* Sidebar */}
-          <div className="space-y-4">
-            <div className="bg-gradient-to-b from-slate-900 to-transparent pb-4 space-y-3">
+          <div className="lg:h-[calc(100vh-7rem)] lg:flex lg:flex-col">
+            <div className="bg-slate-900 pb-4 space-y-3 shrink-0">
               <h2 className="text-2xl font-bold text-white">Parking tips</h2>
 
               <select
@@ -290,25 +290,27 @@ export default function Home() {
               </p>
             </div>
 
-            {filteredSpots.map((spot) => (
-              <div
-                key={spot.id}
-                className="cursor-pointer transform transition-transform hover:scale-105"
-                onClick={() => handleSpotSelect(spot)}
-              >
-                <SpotCard
-                  spot={spot}
-                  onShare={handleShare}
-                  shareLabel={selectedSpot?.id === spot.id ? shareMsg || undefined : undefined}
-                />
-              </div>
-            ))}
+            <div className="space-y-4 lg:flex-1 lg:overflow-y-auto lg:pr-2 lg:min-h-0">
+              {filteredSpots.map((spot) => (
+                <div
+                  key={spot.id}
+                  className="cursor-pointer transform transition-transform hover:scale-105"
+                  onClick={() => handleSpotSelect(spot)}
+                >
+                  <SpotCard
+                    spot={spot}
+                    onShare={handleShare}
+                    shareLabel={selectedSpot?.id === spot.id ? shareMsg || undefined : undefined}
+                  />
+                </div>
+              ))}
 
-            {filteredSpots.length === 0 && (
-              <div className="text-center py-8">
-                <p className="text-slate-400 text-sm">No tips yet — be the first to add one!</p>
-              </div>
-            )}
+              {filteredSpots.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-slate-400 text-sm">No tips yet — be the first to add one!</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       ) : (

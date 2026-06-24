@@ -13,11 +13,29 @@ interface MapProps {
   focusKey: number;
 }
 
+const SOURCE_ID = 'parking-spots';
+const CIRCLE_LAYER = 'spot-circles';
+const SELECTED_LAYER = 'spot-selected';
+
+function toGeoJSON(spots: ParkingSpot[]): GeoJSON.FeatureCollection {
+  return {
+    type: 'FeatureCollection',
+    features: spots.map((s) => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [s.longitude, s.latitude] },
+      properties: { id: s.id, difficulty: s.difficulty },
+    })),
+  };
+}
+
 export function Map({ spots, selectedSpot, onSpotSelect, city, focusKey }: MapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
-  const markersRef = useRef<Record<string, mapboxgl.Marker>>({});
   const popupRef = useRef<mapboxgl.Popup | null>(null);
+  const loadedRef = useRef(false);
+  // Keep the latest spots so the click handler (bound once) can look them up
+  const spotsRef = useRef<ParkingSpot[]>(spots);
+  spotsRef.current = spots;
 
   useEffect(() => {
     const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -38,10 +56,7 @@ export function Map({ spots, selectedSpot, onSpotSelect, city, focusKey }: MapPr
       zoom: city.zoom,
     });
 
-    // Zoom +/- buttons
     map.current.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
-
-    // "Near me" — locate the user, show a blue dot, recenter on their location
     map.current.addControl(
       new mapboxgl.GeolocateControl({
         positionOptions: { enableHighAccuracy: true },
@@ -52,16 +67,68 @@ export function Map({ spots, selectedSpot, onSpotSelect, city, focusKey }: MapPr
     );
 
     map.current.on('load', () => {
-      map.current?.resize();
-      addMarkers(spots);
+      const m = map.current!;
+      m.resize();
+
+      m.addSource(SOURCE_ID, { type: 'geojson', data: toGeoJSON(spotsRef.current) });
+
+      // Selected highlight ring (drawn underneath the main dot)
+      m.addLayer({
+        id: SELECTED_LAYER,
+        type: 'circle',
+        source: SOURCE_ID,
+        filter: ['==', ['get', 'id'], selectedSpot?.id ?? '__none__'],
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 9, 16, 14],
+          'circle-color': '#3b82f6',
+          'circle-opacity': 0.35,
+        },
+      });
+
+      // Main dots — colored by difficulty, scale smoothly with zoom on the GPU
+      m.addLayer({
+        id: CIRCLE_LAYER,
+        type: 'circle',
+        source: SOURCE_ID,
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 5, 16, 9],
+          'circle-color': [
+            'match',
+            ['get', 'difficulty'],
+            'easy', DIFFICULTY_META.easy.color,
+            'moderate', DIFFICULTY_META.moderate.color,
+            'hard', DIFFICULTY_META.hard.color,
+            DIFFICULTY_META.moderate.color,
+          ],
+          'circle-stroke-width': 1.5,
+          'circle-stroke-color': '#ffffff',
+        },
+      });
+
+      m.on('click', CIRCLE_LAYER, (e) => {
+        const id = e.features?.[0]?.properties?.id;
+        const spot = spotsRef.current.find((s) => s.id === id);
+        if (spot) onSpotSelect(spot);
+      });
+      m.on('mouseenter', CIRCLE_LAYER, () => { m.getCanvas().style.cursor = 'pointer'; });
+      m.on('mouseleave', CIRCLE_LAYER, () => { m.getCanvas().style.cursor = ''; });
+
+      loadedRef.current = true;
     });
   }, []);
 
+  // Update dot data when the spots list changes
   useEffect(() => {
-    if (map.current) {
-      addMarkers(spots);
-    }
-  }, [spots, selectedSpot]);
+    if (!map.current || !loadedRef.current) return;
+    const src = map.current.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource | undefined;
+    src?.setData(toGeoJSON(spots));
+  }, [spots]);
+
+  // Highlight the selected dot
+  useEffect(() => {
+    if (!map.current || !loadedRef.current) return;
+    map.current.setFilter(SELECTED_LAYER, ['==', ['get', 'id'], selectedSpot?.id ?? '__none__']);
+  }, [selectedSpot]);
 
   // Recenter the map when the user switches cities
   useEffect(() => {
@@ -120,56 +187,6 @@ export function Map({ spots, selectedSpot, onSpotSelect, city, focusKey }: MapPr
       .setLngLat([spot.longitude, spot.latitude])
       .setHTML(html)
       .addTo(map.current);
-  };
-
-  const addMarkers = (spotsToRender: ParkingSpot[]) => {
-    if (!map.current) return;
-
-    Object.values(markersRef.current).forEach((m) => m.remove());
-    markersRef.current = {};
-
-    spotsToRender.forEach((spot) => {
-      const diff = DIFFICULTY_META[spot.difficulty] ?? DIFFICULTY_META.moderate;
-      const isSelected = selectedSpot?.id === spot.id;
-
-      // Fixed size — no zoom-dependent scaling to prevent jitter
-      const size = isSelected ? 18 : 12;
-      const opacity = 1;
-
-      // Larger transparent hit area so dots are easy to click without looking big
-      const hit = document.createElement('div');
-      hit.style.width = '30px';
-      hit.style.height = '30px';
-      hit.style.display = 'flex';
-      hit.style.alignItems = 'center';
-      hit.style.justifyContent = 'center';
-      hit.style.cursor = 'pointer';
-      hit.style.position = 'relative';
-      hit.title = spot.street_name;
-
-      // The visible dot, centered inside the hit area
-      const dot = document.createElement('div');
-      dot.style.width = `${size}px`;
-      dot.style.height = `${size}px`;
-      dot.style.backgroundColor = diff.color;
-      dot.style.borderRadius = '50%';
-      dot.style.border = isSelected ? '3px solid #3b82f6' : '1.5px solid white';
-      dot.style.boxShadow = '0 1px 3px rgba(0,0,0,0.4)';
-      dot.style.opacity = opacity.toString();
-      dot.style.transition = 'transform 0.12s ease';
-      hit.appendChild(dot);
-
-      // Subtle grow on hover so it's clear the dot is clickable
-      hit.addEventListener('mouseenter', () => { dot.style.transform = 'scale(1.4)'; });
-      hit.addEventListener('mouseleave', () => { dot.style.transform = 'scale(1)'; });
-
-      const marker = new mapboxgl.Marker({ element: hit })
-        .setLngLat([spot.longitude, spot.latitude])
-        .addTo(map.current!);
-
-      hit.addEventListener('click', () => onSpotSelect(spot));
-      markersRef.current[spot.id] = marker;
-    });
   };
 
   return (
