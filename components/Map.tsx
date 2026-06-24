@@ -125,7 +125,6 @@ export function Map({ spots, selectedSpot, onSpotSelect, city, focusKey }: MapPr
   const addMarkers = (spotsToRender: ParkingSpot[]) => {
     if (!map.current) return;
 
-    const zoom = map.current.getZoom();
     Object.values(markersRef.current).forEach((m) => m.remove());
     markersRef.current = {};
 
@@ -133,13 +132,9 @@ export function Map({ spots, selectedSpot, onSpotSelect, city, focusKey }: MapPr
       const diff = DIFFICULTY_META[spot.difficulty] ?? DIFFICULTY_META.moderate;
       const isSelected = selectedSpot?.id === spot.id;
 
-      // Scale size with zoom level
-      const baseSize = isSelected ? 18 : 12;
-      const scaleFactor = Math.min(1 + (zoom - 12) * 0.15, 1.5);
-      const size = Math.round(baseSize * scaleFactor);
-
-      // Higher opacity at higher zoom levels
-      const opacity = Math.min(0.7 + (zoom - 12) * 0.06, 1);
+      // Fixed size — no zoom-dependent scaling to prevent jitter
+      const size = isSelected ? 18 : 12;
+      const opacity = 1;
 
       // Larger transparent hit area so dots are easy to click without looking big
       const hit = document.createElement('div');
@@ -163,23 +158,6 @@ export function Map({ spots, selectedSpot, onSpotSelect, city, focusKey }: MapPr
       dot.style.opacity = opacity.toString();
       dot.style.transition = 'transform 0.12s ease';
       hit.appendChild(dot);
-
-      // Show street name label at higher zoom levels
-      if (zoom >= 15) {
-        const label = document.createElement('div');
-        label.style.position = 'absolute';
-        label.style.top = '-18px';
-        label.style.left = '50%';
-        label.style.transform = 'translateX(-50%)';
-        label.style.fontSize = '11px';
-        label.style.fontWeight = '600';
-        label.style.color = '#111';
-        label.style.whiteSpace = 'nowrap';
-        label.style.pointerEvents = 'none';
-        label.style.textShadow = '0 0 3px #fff, 0 0 3px #fff';
-        label.textContent = spot.street_name;
-        hit.appendChild(label);
-      }
 
       // Subtle grow on hover so it's clear the dot is clickable
       hit.addEventListener('mouseenter', () => { dot.style.transform = 'scale(1.4)'; });

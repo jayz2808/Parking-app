@@ -165,7 +165,7 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8 max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-8">
           {/* Map Section */}
           <div className="lg:col-span-2">
-            <div className="lg:sticky lg:top-8 space-y-4">
+            <div className="space-y-4">
               {/* Difficulty summary */}
               <div className="flex gap-3">
                 <div className="flex-1 bg-green-600/15 border border-green-600/30 rounded-xl px-4 py-3 text-center">
